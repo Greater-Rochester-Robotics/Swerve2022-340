@@ -6,6 +6,8 @@ package frc.robot.subsystems.swervelib;
 
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.SwerveModuleState;
+import edu.wpi.first.wpilibj.DriverStation;
+import frc.robot.Constants;
 import frc.robot.subsystems.swervelib.interfaces.SwerveAbsoluteSensor;
 import frc.robot.subsystems.swervelib.interfaces.SwerveMoveBase;
 import frc.robot.subsystems.swervelib.interfaces.SwerveRotationMotor;
@@ -182,6 +184,15 @@ public class SwerveModule {
         //TODO: check in nested if, varOfRelToAbs is null, if is, return, use DriverStationWarning that ABS sensor isn't working
         //TODO: use the varOfRelToAbs to get a new currentAngle, Hint use the modulo and RAD_TO_ENC_CONV_FACTOR
         //TODO: in and else statement of the if equate the varOfRelToAbs to the correct offset based on currrentRelPos and currentAngle
+        if((absSensor.getSpeedInRad() > -.25 && absSensor.getSpeedInRad() < .25) && !(currentRelPos > -.25 && currentRelPos < .25)) {
+            if(varOfRelToAbs == null) {
+                DriverStation.reportWarning("Abs Sensor is not working!", false);
+                return null;
+            }
+            currentAngle = new Rotation2d(varOfRelToAbs.getRadians() % Constants.RAD_TO_ENC_CONV_FACTOR);
+        } else {
+            varOfRelToAbs = currentAngle.minus(new Rotation2d(currentRelPos));
+        }
         
         // Optimize targetState with Rotation2d object pulled from above
         targetState = optimize(targetState, currentAngle);

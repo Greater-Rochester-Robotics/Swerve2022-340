@@ -230,6 +230,9 @@ public class ADIS implements AutoCloseable, NTSendable {
 
   // Integrated gyro angle
   private double m_integ_angle = 0.0;
+  // private double m_integ_angleY = 0.0;
+  // private double m_integ_angleZ = 0.0;
+
 
   // Complementary filter variables
   private double m_dt = 0.0;
