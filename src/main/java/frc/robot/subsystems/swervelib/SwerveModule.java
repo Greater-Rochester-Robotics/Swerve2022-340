@@ -26,7 +26,7 @@ public class SwerveModule {
     private SwerveMoveBase driveMotor;
     private SwerveRotationMotor rotationMotor;
     private SwerveAbsoluteSensor absSensor;
-    private Rotation2d varOfRelToAbs;//a variable to maybe keep from over burning Sparkmaxes
+    private double varOfRelToAbs;
 
     //The follwing constants are needed all the time, but are made once here
     static final double PI_OVER_TWO = Math.PI/2;
@@ -154,10 +154,8 @@ public class SwerveModule {
             posDiff = posDiff - (TWO_PI * Math.signum(posDiff));
         }
 
-        // Convert the shortest distance of rotation to relative encoder value(use convertion factor)
-        double setpointAngle = posDiff * rotationMotor.radToEncConvFactor();
         // add the encoder distance to the current encoder count
-        double outputEncValue = setpointAngle + currentRelPos;
+        double outputEncValue = posDiff + currentRelPos;
 
         // Set the setpoint using setReference on the rotation motor
         rotationMotor.setRotationMotorPosition(outputEncValue);
@@ -175,42 +173,44 @@ public class SwerveModule {
      */
     public SwerveModuleState setModuleState(SwerveModuleState targetState, boolean isVeloMode){
 
-        
-        // Instatiate Rotation2d object and fill with call from getCurRot2d()
+        // Instantiate Rotation2d object and fill with call from getCurRot2d()
         Rotation2d currentAngle = absSensor.getCurRot2d();
         double currentRelPos = rotationMotor.getRelEncCount();
 
-        //TODO: poll AbsEnc speed compare with RelEnc speed, if AbsEnc speed is 0ish, while other is NOT begin an if statement
-        //TODO: check in nested if, varOfRelToAbs is null, if is, return, use DriverStationWarning that ABS sensor isn't working
-        //TODO: use the varOfRelToAbs to get a new currentAngle, Hint use the modulo and RAD_TO_ENC_CONV_FACTOR
-        //TODO: in and else statement of the if equate the varOfRelToAbs to the correct offset based on currrentRelPos and currentAngle
-        if((absSensor.getSpeedInRad() > -.25 && absSensor.getSpeedInRad() < .25) && !(currentRelPos > -.25 && currentRelPos < .25)) {
-            if(varOfRelToAbs == null) {
-                DriverStation.reportWarning("Abs Sensor is not working!", false);
-                return null;
+        /**
+         * Poll AbsEnc speed and compares with RelEnc speed, if AbsEnc speed is 0ish, while other is NOT 
+         * puts DriverStationWarning that an ABS sensor isn't working and uses the varOfRelToAbs to get a new currentAngle 
+         * otherwise equates the varOfRelToAbs to the correct offset based on currrentRelPos and currentAngle
+         */
+        if(rotationMotor.getRelEncSpeed() > -.25 || rotationMotor.getRelEncSpeed() < .25)
+        {
+            if(!(absSensor.getSpeedInRad() > -.25 && absSensor.getSpeedInRad() < .25)) {
+                DriverStation.reportWarning("An Abs Sensor is not working!", false);
+                currentAngle = new Rotation2d(currentRelPos - varOfRelToAbs);
+            } else {
+                varOfRelToAbs = currentRelPos - currentAngle.getRadians();
             }
-            currentAngle = new Rotation2d(varOfRelToAbs.getRadians() % Constants.RAD_TO_ENC_CONV_FACTOR);
-        } else {
-            varOfRelToAbs = currentAngle.minus(new Rotation2d(currentRelPos));
         }
         
         // Optimize targetState with Rotation2d object pulled from above
         targetState = optimize(targetState, currentAngle);
         
         //TODO:add this to a higher layer to optimize it
-        if(Math.abs(targetState.speedMetersPerSecond) < 
-            (isVeloMode?driveMotor.getMinimumDriveSpeed():driveMotor.getMinimumDutyCycle())) {
-            stopAll();
-        } else {
-            // Set position
-            this.setModulePosition(currentAngle, targetState.angle, currentRelPos);
+        // if(Math.abs(targetState.speedMetersPerSecond) < 
+        //     (isVeloMode?driveMotor.getMinimumDriveSpeed():driveMotor.getMinimumDutyCycle())) {
+        //     stopAll();
+        // } else {
+            
+        // }
 
-            // Output to drive motor based on velomode or not
-            if (isVeloMode) {
-                driveMotor.setDriveSpeed(targetState.speedMetersPerSecond);
-            } else {
-                driveMotor.setDriveDutyCycle(targetState.speedMetersPerSecond);
-            }
+        // Set position
+        this.setModulePosition(currentAngle, targetState.angle, currentRelPos);
+
+        // Output to drive motor based on velomode or not
+        if (isVeloMode) {
+            driveMotor.setDriveSpeed(targetState.speedMetersPerSecond);
+        } else {
+            driveMotor.setDriveDutyCycle(targetState.speedMetersPerSecond);
         }
 
         //TODO: WAIT FOR 2023 Switch this to use with the new SwerveOdometry

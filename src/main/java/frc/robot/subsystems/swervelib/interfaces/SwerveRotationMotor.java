@@ -28,6 +28,8 @@ public interface SwerveRotationMotor {
      */
     public double getRelEncCount();
 
+    public double getRelEncSpeed();
+
     /**
      * This is a testing method, used to drive the module's rotation.
      * It takes pure motor duty cycle(percent output). Positive input 

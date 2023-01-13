@@ -102,6 +102,11 @@ public class SwerveRotationNEO implements SwerveRotationMotor , SwerveAbsoluteSe
         return rotationMotor.getEncoder().getPosition();
     }
 
+    @Override
+    public double getRelEncSpeed() {
+        return rotationMotor.getEncoder().getVelocity() * RAD_TO_ENC_CONV_FACTOR;
+    }
+
     /**
      * 
      */
@@ -176,5 +181,7 @@ public class SwerveRotationNEO implements SwerveRotationMotor , SwerveAbsoluteSe
     public double getSpeedInRad(){
         return 0.0;//TODO: WAIT FOR REV write this
     }
+
+    
 
 }
