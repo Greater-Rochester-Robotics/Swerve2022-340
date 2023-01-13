@@ -66,6 +66,9 @@ public class SwerveRotationNEO implements SwerveRotationMotor , SwerveAbsoluteSe
             areValuesUpdated = true;
         }
         
+        rotationMotor.getEncoder().setPositionConversionFactor(RAD_TO_ENC_CONV_FACTOR);
+        rotationMotor.getEncoder().setVelocityConversionFactor(RAD_TO_ENC_CONV_FACTOR);
+
         //TODO: WAIT FOR REV adjust for new sensor firmware to adjust frame periods
         rotationMotor.setPeriodicFramePeriod(PeriodicFrame.kStatus0, 1000);
         rotationMotor.setPeriodicFramePeriod(PeriodicFrame.kStatus1, 20);
@@ -104,7 +107,7 @@ public class SwerveRotationNEO implements SwerveRotationMotor , SwerveAbsoluteSe
 
     @Override
     public double getRelEncSpeed() {
-        return rotationMotor.getEncoder().getVelocity() * RAD_TO_ENC_CONV_FACTOR;
+        return rotationMotor.getEncoder().getVelocity();
     }
 
     /**

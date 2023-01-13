@@ -184,6 +184,33 @@ public class MultiChannelADIS implements AutoCloseable, NTSendable {
     FLASH_CNT
   };
 
+  private static final byte[] m_autospi_allAngle_packet = {
+    X_DELTANG_OUT,
+    FLASH_CNT,
+    X_DELTANG_LOW,
+    FLASH_CNT,
+    Y_DELTANG_OUT,
+    FLASH_CNT,
+    Y_DELTANG_LOW,
+    FLASH_CNT,
+    Z_DELTANG_OUT,
+    FLASH_CNT,
+    Z_DELTANG_LOW,
+    FLASH_CNT,
+    X_GYRO_OUT,
+    FLASH_CNT,
+    Y_GYRO_OUT,
+    FLASH_CNT,
+    Z_GYRO_OUT,
+    FLASH_CNT,
+    X_ACCL_OUT,
+    FLASH_CNT,
+    Y_ACCL_OUT,
+    FLASH_CNT,
+    Z_ACCL_OUT,
+    FLASH_CNT
+  };
+
   public enum CalibrationTime {
     _32ms(0),
     _64ms(1),
@@ -496,17 +523,20 @@ public class MultiChannelADIS implements AutoCloseable, NTSendable {
       m_auto_configured = true;
     }
     // Do we need to change auto SPI settings?
-    switch (m_yaw_axis) {
-      case kX:
-        m_spi.setAutoTransmitData(m_autospi_x_packet, 2);
-        break;
-      case kY:
-        m_spi.setAutoTransmitData(m_autospi_y_packet, 2);
-        break;
-      default:
-        m_spi.setAutoTransmitData(m_autospi_z_packet, 2);
-        break;
-    }
+    // switch (m_yaw_axis) {
+    //   case kX:
+    //     m_spi.setAutoTransmitData(m_autospi_x_packet, 2);
+    //     break;
+    //   case kY:
+    //     m_spi.setAutoTransmitData(m_autospi_y_packet, 2);
+    //     break;
+    //   default:
+    //     m_spi.setAutoTransmitData(m_autospi_z_packet, 2);
+    //     break;
+    // }
+
+    m_spi.setAutoTransmitData(m_autospi_allAngle_packet, 2);
+
     // Configure auto stall time
     m_spi.configureAutoStall(5, 1000, 1);
     // Kick off auto SPI (Note: Device configration impossible after auto SPI is
@@ -651,13 +681,28 @@ public class MultiChannelADIS implements AutoCloseable, NTSendable {
   /** {@inheritDoc} */
   public void reset() {
     synchronized (this) {
-      m_integ_angle = 0.0;
+      m_integ_angle_x = 0.0;
+      m_integ_angle_y = 0.0;
+      m_integ_angle_z = 0.0;
+
     }
   }
   
-  public void setGyroAngle(double angle) {
+  public void setGyroAngleX(double angle) {
     synchronized (this) {
-      m_integ_angle = angle;
+      m_integ_angle_x = angle;
+    }
+  }
+
+  public void setGyroAngleY(double angle) {
+    synchronized (this) {
+      m_integ_angle_y = angle;
+    }
+  }
+
+  public void setGyroAngleZ(double angle) {
+    synchronized (this) {
+      m_integ_angle_z = angle;
     }
   }
 
@@ -692,7 +737,7 @@ public class MultiChannelADIS implements AutoCloseable, NTSendable {
   /** */
   private void acquire() {
     // Set data packet length
-    final int dataset_len = 19; // 18 data points + timestamp
+    final int dataset_len = 27; // 26 data points + timestamp
     final int BUFFER_SIZE = 4000;
 
     // Set up buffers and variables
@@ -778,15 +823,21 @@ public class MultiChannelADIS implements AutoCloseable, NTSendable {
            * Get delta angle value for selected yaw axis and scale by the elapsed time
            * (based on timestamp)
            */
-          delta_angle =
+          delta_angle_x =
               (toInt(buffer[i + 3], buffer[i + 4], buffer[i + 5], buffer[i + 6]) * delta_angle_sf)
                   / (m_scaled_sample_rate / (buffer[i] - previous_timestamp));
-          gyro_rate_x = (toShort(buffer[i + 7], buffer[i + 8]) / 10.0);
-          gyro_rate_y = (toShort(buffer[i + 9], buffer[i + 10]) / 10.0);
-          gyro_rate_z = (toShort(buffer[i + 11], buffer[i + 12]) / 10.0);
-          accel_x = (toShort(buffer[i + 13], buffer[i + 14]) / 800.0);
-          accel_y = (toShort(buffer[i + 15], buffer[i + 16]) / 800.0);
-          accel_z = (toShort(buffer[i + 17], buffer[i + 18]) / 800.0);
+          delta_angle_y =
+              (toInt(buffer[i + 7], buffer[i + 8], buffer[i + 9], buffer[i + 10]) * delta_angle_sf)
+                  / (m_scaled_sample_rate / (buffer[i] - previous_timestamp));
+          delta_angle_z =
+              (toInt(buffer[i + 11], buffer[i + 12], buffer[i + 13], buffer[i + 14]) * delta_angle_sf)
+                  / (m_scaled_sample_rate / (buffer[i] - previous_timestamp));
+          gyro_rate_x = (toShort(buffer[i + 15], buffer[i + 16]) / 10.0);
+          gyro_rate_y = (toShort(buffer[i + 17], buffer[i + 18]) / 10.0);
+          gyro_rate_z = (toShort(buffer[i + 19], buffer[i + 20]) / 10.0);
+          accel_x = (toShort(buffer[i + 21], buffer[i + 22]) / 800.0);
+          accel_y = (toShort(buffer[i + 23], buffer[i + 24]) / 800.0);
+          accel_z = (toShort(buffer[i + 25], buffer[i + 26]) / 800.0);
 
           // Convert scaled sensor data to SI units (for tilt calculations)
           // TODO: Should the unit outputs be selectable?
@@ -861,7 +912,9 @@ public class MultiChannelADIS implements AutoCloseable, NTSendable {
         data_remainder = 0;
         data_to_read = 0;
         previous_timestamp = 0.0;
-        delta_angle = 0.0;
+        delta_angle_x = 0.0;
+        delta_angle_y = 0.0;
+        delta_angle_z = 0.0;
         gyro_rate_x = 0.0;
         gyro_rate_y = 0.0;
         gyro_rate_z = 0.0;
@@ -941,47 +994,50 @@ public class MultiChannelADIS implements AutoCloseable, NTSendable {
   }
 
   /** @return Yaw axis angle in degrees (CCW positive) */
-  public synchronized double getAngle() {
-    switch (m_yaw_axis) {
+  public synchronized double getAngle(IMUAxis axis) {
+    switch (axis) {
       case kX:
+        
         if (m_simGyroAngleX != null) {
           return m_simGyroAngleX.get();
         }
-        break;
+        return m_integ_angle_x;
       case kY:
         if (m_simGyroAngleY != null) {
           return m_simGyroAngleY.get();
         }
-        break;
+        return m_integ_angle_y;
       case kZ:
         if (m_simGyroAngleZ != null) {
           return m_simGyroAngleZ.get();
         }
-        break;
+        return m_integ_angle_z;
     }
-    return m_integ_angle;
+    return 0.0;
   }
 
+
   /** @return Yaw axis angular rate in degrees per second (CCW positive) */
-  public synchronized double getRate() {
-    if (m_yaw_axis == IMUAxis.kX) {
-      if (m_simGyroRateX != null) {
-        return m_simGyroRateX.get();
-      }
-      return m_gyro_rate_x;
-    } else if (m_yaw_axis == IMUAxis.kY) {
-      if (m_simGyroRateY != null) {
-        return m_simGyroRateY.get();
-      }
-      return m_gyro_rate_y;
-    } else if (m_yaw_axis == IMUAxis.kZ) {
-      if (m_simGyroRateZ != null) {
-        return m_simGyroRateZ.get();
-      }
-      return m_gyro_rate_z;
-    } else {
-      return 0.0;
+  public synchronized double getRate(IMUAxis axis) {
+    switch (axis) {
+      case kX:
+        
+        if (m_simGyroRateX != null) {
+          return m_simGyroRateX.get();
+        }
+        return m_gyro_rate_x;
+      case kY:
+        if (m_simGyroRateY != null) {
+          return m_simGyroRateY.get();
+        }
+        return m_gyro_rate_y;
+      case kZ:
+        if (m_simGyroRateZ != null) {
+          return m_simGyroRateZ.get();
+        }
+        return m_gyro_rate_z;
     }
+      return 0.0;
   }
 
   /** @return Yaw Axis */
@@ -1036,7 +1092,6 @@ public class MultiChannelADIS implements AutoCloseable, NTSendable {
   @Override
   public void initSendable(NTSendableBuilder builder) {
     builder.setSmartDashboardType("Gyro");
-    builder.addDoubleProperty("Value", this::getAngle, null);
+    builder.addDoubleProperty("Value", () -> getAngle(m_yaw_axis), null); //this::getAngle, null);
   }
 }
-
